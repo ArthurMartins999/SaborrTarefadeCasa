@@ -6,8 +6,6 @@
   <title>Tarefas do Grupo</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-
-
 <body>
   <div class="wrap">
     <header>
@@ -45,23 +43,29 @@
       </div>
     </div>
 
-    <!-- CHAT -->
-    <div class="card" style="margin-top:12px">
-      <div class="meta" style="align-items:center;margin-top:0">
-        <span class="pill">💬 Chat do Grupo</span>
-        <span class="muted">Tempo real</span>
-      </div>
-
-      <div id="chatBox" class="chatBox"></div>
-
-      <div class="row" style="margin-top:10px;align-items:flex-end">
-        <textarea id="chatText" placeholder="Escreve uma mensagem..." style="min-height:60px"></textarea>
-        <button id="btnSend">Enviar</button>
-      </div>
-    </div>
-
     <!-- FEED -->
     <div class="feed" id="feed"></div>
+  </div>
+
+  <!-- Botão flutuante do chat -->
+  <button id="chatFab" class="chatFab" aria-label="Abrir chat">
+    💬
+    <span id="chatBadge" class="chatBadge" hidden>0</span>
+  </button>
+
+  <!-- Drawer do chat (canto) -->
+  <div id="chatDrawer" class="chatDrawer" aria-hidden="true">
+    <div class="chatTop">
+      <div class="chatTopTitle">💬 Chat do Grupo</div>
+      <button id="chatClose" class="chatClose" aria-label="Fechar">✕</button>
+    </div>
+
+    <div id="chatBox" class="chatBox"></div>
+
+    <div class="chatBottom">
+      <textarea id="chatText" placeholder="Mensagem..." rows="2"></textarea>
+      <button id="btnSend">Enviar</button>
+    </div>
   </div>
 
   <script type="module" src="script.js"></script>

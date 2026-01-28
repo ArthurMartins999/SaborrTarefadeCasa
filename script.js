@@ -18,7 +18,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Elementos
+// Elementos posts
 const statusEl = document.getElementById("status");
 const feedEl = document.getElementById("feed");
 const btnPost = document.getElementById("btnPost");
@@ -30,7 +30,12 @@ const bodyEl = document.getElementById("body");
 const linkEl = document.getElementById("link");
 const photoEl = document.getElementById("photo");
 
-// Chat elementos
+// Elementos chat drawer
+const chatFab = document.getElementById("chatFab");
+const chatBadge = document.getElementById("chatBadge");
+const chatDrawer = document.getElementById("chatDrawer");
+const chatClose = document.getElementById("chatClose");
+
 const chatBox = document.getElementById("chatBox");
 const chatText = document.getElementById("chatText");
 const btnSend = document.getElementById("btnSend");
@@ -39,25 +44,19 @@ statusEl.textContent = "Online ✅";
 
 // Helpers
 function escapeHtml(s = "") {
-  return s
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+  return s.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
 }
-function fmtDate(ts) {
-  if (!ts) return "agora";
+function fmtDate(ts){
+  if(!ts) return "agora";
   return ts.toDate().toLocaleString("pt-BR");
 }
-function isValidUrl(u) {
-  try {
-    return !!u && new URL(u).protocol.startsWith("http");
-  } catch {
-    return false;
-  }
+function isValidUrl(u){
+  try { return !!u && new URL(u).protocol.startsWith("http"); }
+  catch { return false; }
 }
 
-// ✅ Upload Cloudinary (foto opcional)
-async function uploadToCloudinary(file) {
+// Cloudinary upload
+async function uploadToCloudinary(file){
   const CLOUD_NAME = "ddlnf32a6";
   const UPLOAD_PRESET = "insta_grupo_unsigned_v2";
 
@@ -66,22 +65,18 @@ async function uploadToCloudinary(file) {
   form.append("file", file);
   form.append("upload_preset", UPLOAD_PRESET);
 
-  const res = await fetch(url, { method: "POST", body: form });
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
+  const res = await fetch(url, { method:"POST", body: form });
+  const data = await res.json().catch(()=> ({}));
+  if(!res.ok){
     console.error("Cloudinary error:", data);
     throw new Error(data?.error?.message || "Erro ao subir imagem");
   }
-
   return data.secure_url;
 }
 
 /* =========================
    POSTS (feed + criar + excluir)
 ========================= */
-
-// Feed em tempo real
 const postsQ = query(collection(db, "posts"), orderBy("createdAt", "desc"));
 
 onSnapshot(postsQ, (snap) => {
@@ -112,7 +107,6 @@ onSnapshot(postsQ, (snap) => {
               loading="lazy" alt="foto">`
       : "";
 
-    // regra simples: só deixa excluir se o nome digitado bater com o author do post
     const currentName = (authorEl.value.trim() || "Anon");
     const canDelete = currentName === (p.author || "Anon");
 
@@ -139,14 +133,12 @@ onSnapshot(postsQ, (snap) => {
   });
 });
 
-// Clique para excluir post (delegação)
 feedEl.addEventListener("click", async (e) => {
   const btnDel = e.target.closest(".btnDel");
   if (!btnDel) return;
 
   const id = btnDel.dataset.id;
-  const ok = confirm("Quer excluir esse post?");
-  if (!ok) return;
+  if (!confirm("Quer excluir esse post?")) return;
 
   try {
     await deleteDoc(doc(db, "posts", id));
@@ -156,7 +148,6 @@ feedEl.addEventListener("click", async (e) => {
   }
 });
 
-// Publicar post
 btnPost.addEventListener("click", async () => {
   const author = authorEl.value.trim() || "Anon";
   const subject = subjectEl?.value || "Geral";
@@ -176,7 +167,6 @@ btnPost.addEventListener("click", async () => {
 
   try {
     let imageUrl = "";
-
     if (file) imageUrl = await uploadToCloudinary(file);
 
     await addDoc(collection(db, "posts"), {
@@ -207,11 +197,53 @@ btnPost.addEventListener("click", async () => {
 });
 
 /* =========================
+   CHAT DRAWER (UI + badge)
+========================= */
+let chatOpen = false;
+let unread = 0;
+let lastSeenMsgId = null;
+
+function setBadge(n){
+  unread = n;
+  if (!chatBadge) return;
+  if (n <= 0) {
+    chatBadge.hidden = true;
+    chatBadge.textContent = "0";
+  } else {
+    chatBadge.hidden = false;
+    chatBadge.textContent = n > 99 ? "99+" : String(n);
+  }
+}
+
+function openChat(){
+  chatOpen = true;
+  chatDrawer.classList.add("open");
+  chatDrawer.setAttribute("aria-hidden", "false");
+  setBadge(0);
+}
+
+function closeChat(){
+  chatOpen = false;
+  chatDrawer.classList.remove("open");
+  chatDrawer.setAttribute("aria-hidden", "true");
+}
+
+chatFab?.addEventListener("click", () => {
+  chatOpen ? closeChat() : openChat();
+});
+
+chatClose?.addEventListener("click", closeChat);
+
+// fechar clicando fora (opcional)
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeChat();
+});
+
+/* =========================
    CHAT (tempo real + enviar + editar + apagar)
 ========================= */
-
 if (!chatBox || !chatText || !btnSend) {
-  console.warn("Chat não encontrado no HTML. Verifique chatBox/chatText/btnSend.");
+  console.warn("Chat não encontrado no HTML.");
 } else {
   const chatQ = query(collection(db, "messages"), orderBy("createdAt", "asc"));
 
@@ -227,22 +259,22 @@ if (!chatBox || !chatText || !btnSend) {
     }
 
     const currentName = (authorEl.value.trim() || "Anon");
+    let newestIdThisRender = null;
 
     snap.forEach((docSnap) => {
       const m = docSnap.data();
       const msgId = docSnap.id;
+      newestIdThisRender = msgId;
 
       const div = document.createElement("div");
       div.className = "chatMsg";
 
       const canManage = currentName === (m.author || "Anon");
       const actions = canManage
-        ? `
-          <div class="chatActions">
-            <button class="chatBtn chatEdit" data-id="${msgId}">Editar</button>
-            <button class="chatBtn chatDel" data-id="${msgId}">Apagar</button>
-          </div>
-        `
+        ? `<div class="chatActions">
+             <button class="chatBtn chatEdit" data-id="${msgId}">Editar</button>
+             <button class="chatBtn chatDel" data-id="${msgId}">Apagar</button>
+           </div>`
         : "";
 
       const edited = m.editedAt ? " • editado" : "";
@@ -252,16 +284,29 @@ if (!chatBox || !chatText || !btnSend) {
           <span>👤 ${escapeHtml(m.author || "Anon")}</span>
           <span>🕒 ${fmtDate(m.createdAt)}${edited}</span>
         </div>
-
         <div class="chatText" style="white-space:pre-wrap">${escapeHtml(m.text || "")}</div>
-
         ${actions}
       `;
 
       chatBox.appendChild(div);
     });
 
-    chatBox.scrollTop = chatBox.scrollHeight;
+    // Badge +1 quando chega msg nova e chat está fechado
+    if (newestIdThisRender && lastSeenMsgId && newestIdThisRender !== lastSeenMsgId) {
+      if (!chatOpen) setBadge(unread + 1);
+    }
+    // se é primeira vez carregando, não conta como nova
+    if (!lastSeenMsgId) setBadge(0);
+
+    lastSeenMsgId = newestIdThisRender;
+
+    // se chat aberto, rola pro final e zera badge
+    if (chatOpen) {
+      chatBox.scrollTop = chatBox.scrollHeight;
+      setBadge(0);
+    } else {
+      // se fechado, não força scroll
+    }
   });
 
   // enviar
@@ -279,6 +324,8 @@ if (!chatBox || !chatText || !btnSend) {
         editedAt: null
       });
       chatText.value = "";
+      // se chat aberto, mantém badge 0
+      if (chatOpen) setBadge(0);
     } catch (e) {
       console.error(e);
       alert("Erro ao enviar mensagem");
@@ -300,31 +347,21 @@ if (!chatBox || !chatText || !btnSend) {
     const del = e.target.closest(".chatDel");
     const edit = e.target.closest(".chatEdit");
 
-    // apagar
     if (del) {
       const id = del.dataset.id;
-      const ok = confirm("Apagar essa mensagem?");
-      if (!ok) return;
-
-      try {
-        await deleteDoc(doc(db, "messages", id));
-      } catch (err) {
-        console.error(err);
-        alert("Não consegui apagar. Veja o Console (F12).");
-      }
+      if (!confirm("Apagar essa mensagem?")) return;
+      try { await deleteDoc(doc(db, "messages", id)); }
+      catch (err) { console.error(err); alert("Não consegui apagar."); }
       return;
     }
 
-    // editar
     if (edit) {
       const id = edit.dataset.id;
-
       const msgEl = edit.closest(".chatMsg")?.querySelector(".chatText");
       const currentText = msgEl?.textContent ?? "";
 
       const newText = prompt("Editar mensagem:", currentText);
       if (newText === null) return;
-
       const trimmed = newText.trim();
       if (!trimmed) return alert("A mensagem não pode ficar vazia.");
 
@@ -335,7 +372,7 @@ if (!chatBox || !chatText || !btnSend) {
         });
       } catch (err) {
         console.error(err);
-        alert("Não consegui editar. Veja o Console (F12).");
+        alert("Não consegui editar.");
       }
     }
   });

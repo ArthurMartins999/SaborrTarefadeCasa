@@ -23,7 +23,7 @@ header{
   justify-content:space-between;
   align-items:center;
   gap:12px;
-  margin-bottom:14px
+  margin-bottom:14px;
 }
 
 h1{font-size:18px;margin:0}
@@ -32,7 +32,8 @@ h1{font-size:18px;margin:0}
   background:var(--card);
   border:1px solid var(--line);
   border-radius:16px;
-  padding:14px
+  padding:14px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.25);
 }
 
 .grid{display:grid;gap:10px}
@@ -45,7 +46,7 @@ input,textarea,select{
   border:1px solid var(--line);
   color:var(--txt);
   border-radius:12px;
-  padding:10px
+  padding:10px;
 }
 
 textarea{min-height:90px;resize:vertical}
@@ -59,6 +60,7 @@ button{
   cursor:pointer;
 }
 button:disabled{opacity:.6;cursor:not-allowed}
+button:hover{opacity:.93}
 
 .muted{color:var(--muted);font-size:13px}
 
@@ -71,7 +73,8 @@ button:disabled{opacity:.6;cursor:not-allowed}
   color:var(--muted);
   font-size:13px;
   margin-top:8px;
-  flex-wrap:wrap
+  flex-wrap:wrap;
+  align-items:center;
 }
 
 .title{font-weight:700;margin:0 0 6px 0}
@@ -84,7 +87,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
   border:1px solid var(--line);
   background:#0f1424;
   border-radius:999px;
-  padding:6px 10px
+  padding:6px 10px;
 }
 
 .row{display:flex;gap:10px;flex-wrap:wrap}
@@ -92,7 +95,6 @@ button:disabled{opacity:.6;cursor:not-allowed}
 
 a{color:#8ab4ff}
 
-/* file input */
 input[type="file"]{padding:8px}
 
 /* mobile */
@@ -113,22 +115,127 @@ input[type="file"]{padding:8px}
 }
 .btnDel:hover{opacity:.9}
 
-/* chat */
-.chatBox{
-  margin-top:10px;
-  display:grid;
-  gap:8px;
-  max-height:280px;
-  overflow:auto;
-  padding-right:6px;
+/* ===== Chat flutuante tipo Insta ===== */
+.chatFab{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  width:56px;
+  height:56px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:#0f1424;
+  color:var(--txt);
+  font-size:20px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: 0 14px 40px rgba(0,0,0,.35);
+  z-index:9999;
 }
 
+.chatBadge{
+  position:absolute;
+  top:-6px;
+  right:-6px;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  border-radius:999px;
+  background:#ef4444;
+  color:white;
+  font-size:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:2px solid var(--bg);
+  font-weight:700;
+}
+
+.chatDrawer{
+  position:fixed;
+  right:18px;
+  bottom:86px;
+  width:min(380px, calc(100vw - 36px));
+  height:min(520px, calc(100vh - 140px));
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:16px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  box-shadow: 0 18px 60px rgba(0,0,0,.45);
+  transform: translateY(14px);
+  opacity:0;
+  pointer-events:none;
+  transition: .18s ease;
+  z-index:9998;
+}
+
+.chatDrawer.open{
+  transform: translateY(0);
+  opacity:1;
+  pointer-events:auto;
+}
+
+.chatTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 12px;
+  border-bottom:1px solid var(--line);
+  background:#0f1424;
+}
+
+.chatTopTitle{
+  font-weight:800;
+  font-size:14px;
+}
+
+.chatClose{
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:transparent;
+  color:var(--txt);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.chatBox{
+  padding:12px;
+  display:grid;
+  gap:8px;
+  overflow:auto;
+  flex:1;
+}
+
+.chatBottom{
+  display:flex;
+  gap:10px;
+  padding:12px;
+  border-top:1px solid var(--line);
+  background:#0f1424;
+}
+
+.chatBottom textarea{
+  min-height:42px;
+  resize:none;
+}
+
+/* msgs do chat */
 .chatMsg{
   border:1px solid var(--line);
   background:#0f1424;
   border-radius:12px;
   padding:10px;
 }
+
 .chatMeta{
   display:flex;
   justify-content:space-between;
@@ -154,6 +261,7 @@ input[type="file"]{padding:8px}
   cursor:pointer;
   font-size:13px;
 }
+
 .chatDel{
   background:#2a0f12;
   border-color:#4b1b22;
