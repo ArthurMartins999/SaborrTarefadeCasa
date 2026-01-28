@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tarefas do Grupo</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+
+<body>
+  <div class="wrap">
+    <header>
+      <h1>📝 Tarefas do Grupo</h1>
+      <div class="muted" id="status">Conectando…</div>
+    </header>
+
+    <!-- POSTAR -->
+    <div class="card">
+      <div class="row">
+        <input id="author" placeholder="Seu nome (ex: Arthur)" />
+        <select id="subject">
+          <option value="Geral">Geral</option>
+          <option>Matemática</option>
+          <option>Português</option>
+          <option>Física</option>
+          <option>Química</option>
+          <option>História</option>
+          <option>Geografia</option>
+          <option>Biologia</option>
+          <option>Inglês</option>
+        </select>
+      </div>
+
+      <div class="grid" style="margin-top:10px">
+        <input id="title" placeholder="Título (ex: Lista 5 - Questão 3)" />
+        <textarea id="body" placeholder="Escreve a resposta/explicação aqui..."></textarea>
+        <input id="link" placeholder="Link opcional (https://)" />
+
+        <div class="row" style="align-items:center;justify-content:space-between">
+          <div class="muted">Tudo aparece pra todo mundo em tempo real ✅</div>
+          <input type="file" id="photo" accept="image/*" />
+          <button id="btnPost">Publicar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="card" style="margin-top:12px">
+      <div class="meta" style="align-items:center;margin-top:0">
+        <span class="pill">💬 Chat do Grupo</span>
+        <span class="muted">Tempo real</span>
+      </div>
+
+      <div id="chatBox" class="chatBox"></div>
+
+      <div class="row" style="margin-top:10px;align-items:flex-end">
+        <textarea id="chatText" placeholder="Escreve uma mensagem..." style="min-height:60px"></textarea>
+        <button id="btnSend">Enviar</button>
+      </div>
+    </div>
+
+    <!-- FEED -->
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
