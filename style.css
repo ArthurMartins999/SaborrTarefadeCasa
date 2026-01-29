@@ -131,6 +131,21 @@ input[type="file"]{padding:8px}
 }
 .btnDel:hover{opacity:.9}
 
+/* ===== Tag ADM ===== */
+.badgeAdm{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.3px;
+  border:1px solid #7c3aed33;
+  background: #7c3aed22;
+  color: #c4b5fd;
+}
+
 /* ===== Chat flutuante ===== */
 .chatFab{
   position:fixed;

@@ -33,6 +33,25 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 /* =========================
+   ADMINS (SEUS UIDs)
+========================= */
+const ADMINS = [
+  "jZvf3RDntVQxRFU9jRFi3hS4wjU2",
+  "fMCWcyQ2odZZ05I480JEWZhiXts2"
+];
+
+let currentUser = null;
+function isAdminUser(uid) {
+  return ADMINS.includes(uid);
+}
+function isAdmin() {
+  return currentUser && isAdminUser(currentUser.uid);
+}
+function admTagHtml(uid) {
+  return isAdminUser(uid) ? ` <span class="badgeAdm">ADM</span>` : "";
+}
+
+/* =========================
    ELEMENTOS
 ========================= */
 // telas
@@ -99,9 +118,6 @@ function emailFromUser(user){
 /* =========================
    AUTH (persistência + telas)
 ========================= */
-let currentUser = null;
-
-// Persistência: não pedir login de novo no mesmo aparelho/navegador
 await setPersistence(auth, browserLocalPersistence);
 
 function showLogin(){
@@ -110,6 +126,7 @@ function showLogin(){
   if (chatFab) chatFab.style.display = "none";
   if (chatDrawer) chatDrawer.classList.remove("open");
 }
+
 function showApp(){
   authScreen.style.display = "none";
   appScreen.style.display = "block";
@@ -122,9 +139,16 @@ onAuthStateChanged(auth, (user) => {
 
   if (user) {
     showApp();
-    whoEl.textContent = user.displayName || "Usuário";
-    authorEl.value = user.displayName || "";
-    authorEl.disabled = true; // nome travado (evita fingir)
+
+    const me = user.displayName || "Usuário";
+    whoEl.textContent = me;
+
+    // trava o nome pra não fingir
+    authorEl.value = me;
+    authorEl.disabled = true;
+
+    // pequeno indicador no status se for ADM
+    if (isAdmin()) statusEl.textContent = "Online ✅ (ADM)";
   } else {
     showLogin();
   }
@@ -229,7 +253,9 @@ onSnapshot(postsQ, (snap) => {
               loading="lazy" alt="foto">`
       : "";
 
-    const canDelete = currentUser && p.uid === currentUser.uid;
+    // ✅ dono OU ADM
+    const canDelete = currentUser && (p.uid === currentUser.uid || isAdmin());
+
     const delBtnHtml = canDelete
       ? `<button class="btnDel" data-id="${postId}">Excluir</button>`
       : "";
@@ -237,7 +263,10 @@ onSnapshot(postsQ, (snap) => {
     card.innerHTML = `
       <div class="meta" style="align-items:center">
         <span class="pill">📚 ${escapeHtml(p.subject || "Geral")}</span>
-        <span class="pill">👤 ${escapeHtml(p.author || "Anon")}</span>
+        <span class="pill">
+          👤 ${escapeHtml(p.author || "Anon")}
+          ${admTagHtml(p.uid)}
+        </span>
         <span class="pill">🕒 ${fmtDate(p.createdAt)}</span>
         ${delBtnHtml}
       </div>
@@ -279,6 +308,7 @@ btnPost.addEventListener("click", async () => {
   if (!title || !body) return alert("Coloca pelo menos Título e Texto!");
 
   const file = photoEl?.files?.[0] || null;
+
   btnPost.disabled = true;
   statusEl.textContent = "Postando… ⏳";
 
@@ -303,7 +333,7 @@ btnPost.addEventListener("click", async () => {
     if (photoEl) photoEl.value = "";
 
     statusEl.textContent = "Postado ✅";
-    setTimeout(() => (statusEl.textContent = "Online ✅"), 1200);
+    setTimeout(() => (statusEl.textContent = isAdmin() ? "Online ✅ (ADM)" : "Online ✅"), 1200);
   } catch (err) {
     console.error(err);
     alert("Erro ao postar: " + (err?.message || "desconhecido"));
@@ -314,7 +344,7 @@ btnPost.addEventListener("click", async () => {
 });
 
 /* =========================
-   CHAT (drawer + badge + editar/apagar)
+   CHAT (drawer + badge)
 ========================= */
 let chatOpen = false;
 let unread = 0;
@@ -339,6 +369,7 @@ function openChat(){
   setBadge(0);
   if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
 }
+
 function closeChat(){
   chatOpen = false;
   chatDrawer.classList.remove("open");
@@ -349,6 +380,9 @@ chatFab?.addEventListener("click", () => chatOpen ? closeChat() : openChat());
 chatClose?.addEventListener("click", closeChat);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChat(); });
 
+/* =========================
+   CHAT (tempo real + enviar + editar + apagar)
+========================= */
 const chatQ = query(collection(db, "messages"), orderBy("createdAt", "asc"));
 
 onSnapshot(chatQ, (snap) => {
@@ -372,7 +406,9 @@ onSnapshot(chatQ, (snap) => {
     const div = document.createElement("div");
     div.className = "chatMsg";
 
-    const canManage = currentUser && m.uid === currentUser.uid;
+    // ✅ dono OU ADM
+    const canManage = currentUser && (m.uid === currentUser.uid || isAdmin());
+
     const actions = canManage
       ? `<div class="chatActions">
            <button class="chatBtn chatEdit" data-id="${msgId}">Editar</button>
@@ -384,7 +420,10 @@ onSnapshot(chatQ, (snap) => {
 
     div.innerHTML = `
       <div class="chatMeta">
-        <span>👤 ${escapeHtml(m.author || "Anon")}</span>
+        <span>
+          👤 ${escapeHtml(m.author || "Anon")}
+          ${admTagHtml(m.uid)}
+        </span>
         <span>🕒 ${fmtDate(m.createdAt)}${edited}</span>
       </div>
       <div class="chatText" style="white-space:pre-wrap">${escapeHtml(m.text || "")}</div>
@@ -409,6 +448,7 @@ onSnapshot(chatQ, (snap) => {
 // enviar
 btnSend.addEventListener("click", async () => {
   if (!currentUser) return alert("Faça login.");
+
   const text = chatText.value.trim();
   if (!text) return;
 
