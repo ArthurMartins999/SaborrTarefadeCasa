@@ -4,25 +4,63 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tarefas do Grupo</title>
+
   <link rel="stylesheet" href="style.css" />
-  
-  <link rel="icon" href="/favicon.png" />
-
-
- 
-
+  <link rel="icon" href="./favicon.ico">
 </head>
+
 <body>
-  <div class="wrap">
+
+  <!-- ===== TELA DE LOGIN (aparece primeiro) ===== -->
+  <div id="authScreen" class="wrap">
+    <header class="authHeader">
+      <h1>📝 Tarefas do Grupo</h1>
+      <div class="muted">Entre para postar e usar o chat</div>
+    </header>
+
+    <div class="card authCard">
+      <div class="meta" style="margin-top:0">
+        <span class="pill">🔐 Login do Grupo</span>
+        <span class="muted" id="authStatus">Use Usuário + Senha</span>
+      </div>
+
+      <div class="grid" style="margin-top:12px">
+        <input id="username" placeholder="Usuário (ex: arthur)" autocomplete="username" />
+        <input id="password" type="password" placeholder="Senha (mín. 6)" autocomplete="current-password" />
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button id="btnLogin">Entrar</button>
+        <button id="btnSignup" class="btnGhost">Criar conta</button>
+      </div>
+
+      <div class="muted" style="margin-top:10px">
+        Dica: use usuário simples (sem espaços), tipo <b>joao</b>, <b>maria</b>.
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:12px">
+      ✅ Depois que logar uma vez, não precisa logar de novo nesse aparelho.
+    </div>
+  </div>
+
+
+  <!-- ===== APP (só aparece depois de logar) ===== -->
+  <div id="app" class="wrap" style="display:none">
     <header>
       <h1>📝 Tarefas do Grupo</h1>
-      <div class="muted" id="status">Conectando…</div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+        <span class="pill">👤 <span id="who">...</span></span>
+        <button id="btnLogout" class="btnGhost">Sair</button>
+        <div class="muted" id="status">Conectando…</div>
+      </div>
     </header>
 
     <!-- POSTAR -->
     <div class="card">
       <div class="row">
-        <input id="author" placeholder="Seu nome (ex: Arthur)" />
+        <input id="author" placeholder="Seu nome" />
         <select id="subject">
           <option value="Geral">Geral</option>
           <option>Matemática</option>
@@ -54,7 +92,7 @@
   </div>
 
   <!-- Botão flutuante do chat -->
-  <button id="chatFab" class="chatFab" aria-label="Abrir chat">
+  <button id="chatFab" class="chatFab" aria-label="Abrir chat" style="display:none">
     💬
     <span id="chatBadge" class="chatBadge" hidden>0</span>
   </button>

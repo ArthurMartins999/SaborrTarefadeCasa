@@ -24,6 +24,15 @@ header{
   align-items:center;
   gap:12px;
   margin-bottom:14px;
+  flex-wrap:wrap;
+}
+
+.authHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:14px;
 }
 
 h1{font-size:18px;margin:0}
@@ -94,14 +103,21 @@ button:hover{opacity:.93}
 .row > *{flex:1;min-width:180px}
 
 a{color:#8ab4ff}
-
 input[type="file"]{padding:8px}
 
-/* mobile */
 @media (max-width: 520px){
   .wrap{padding:14px}
   .row > *{min-width:100%}
 }
+
+/* Auth */
+.authCard{ margin-top:10px; }
+.btnGhost{
+  background:transparent;
+  border:1px solid var(--line);
+  color:var(--txt);
+}
+.btnGhost:hover{opacity:.9}
 
 /* botão excluir post */
 .btnDel{
@@ -115,7 +131,7 @@ input[type="file"]{padding:8px}
 }
 .btnDel:hover{opacity:.9}
 
-/* ===== Chat flutuante tipo Insta ===== */
+/* ===== Chat flutuante ===== */
 .chatFab{
   position:fixed;
   right:18px;
@@ -172,7 +188,6 @@ input[type="file"]{padding:8px}
   transition: .18s ease;
   z-index:9998;
 }
-
 .chatDrawer.open{
   transform: translateY(0);
   opacity:1;
@@ -188,15 +203,10 @@ input[type="file"]{padding:8px}
   border-bottom:1px solid var(--line);
   background:#0f1424;
 }
-
-.chatTopTitle{
-  font-weight:800;
-  font-size:14px;
-}
+.chatTopTitle{font-weight:800;font-size:14px}
 
 .chatClose{
-  width:34px;
-  height:34px;
+  width:34px;height:34px;
   border-radius:10px;
   border:1px solid var(--line);
   background:transparent;
@@ -222,20 +232,14 @@ input[type="file"]{padding:8px}
   border-top:1px solid var(--line);
   background:#0f1424;
 }
+.chatBottom textarea{min-height:42px;resize:none}
 
-.chatBottom textarea{
-  min-height:42px;
-  resize:none;
-}
-
-/* msgs do chat */
 .chatMsg{
   border:1px solid var(--line);
   background:#0f1424;
   border-radius:12px;
   padding:10px;
 }
-
 .chatMeta{
   display:flex;
   justify-content:space-between;
@@ -244,14 +248,12 @@ input[type="file"]{padding:8px}
   font-size:12px;
   margin-bottom:6px;
 }
-
 .chatActions{
   display:flex;
   gap:8px;
   justify-content:flex-end;
   margin-top:8px;
 }
-
 .chatBtn{
   border:1px solid var(--line);
   background:#0b1020;
@@ -261,12 +263,5 @@ input[type="file"]{padding:8px}
   cursor:pointer;
   font-size:13px;
 }
-
-.chatDel{
-  background:#2a0f12;
-  border-color:#4b1b22;
-}
-.chatEdit{
-  background:#102031;
-  border-color:#1b3550;
-}
+.chatDel{ background:#2a0f12; border-color:#4b1b22; }
+.chatEdit{ background:#102031; border-color:#1b3550; }

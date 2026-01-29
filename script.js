@@ -4,7 +4,20 @@ import {
   query, orderBy, onSnapshot, deleteDoc, doc, updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// firebaseConfig do projeto
+import {
+  getAuth,
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+/* =========================
+   CONFIG FIREBASE
+========================= */
 const firebaseConfig = {
   apiKey: "AIzaSyDbfX_DvlefT_3TrTZPX9Me0RxDVAas_M0",
   authDomain: "as-tarefas.firebaseapp.com",
@@ -17,12 +30,30 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-// Elementos posts
+/* =========================
+   ELEMENTOS
+========================= */
+// telas
+const authScreen = document.getElementById("authScreen");
+const appScreen = document.getElementById("app");
+
+// status
 const statusEl = document.getElementById("status");
+const whoEl = document.getElementById("who");
+
+// auth ui
+const authStatus = document.getElementById("authStatus");
+const usernameEl = document.getElementById("username");
+const passwordEl = document.getElementById("password");
+const btnLogin = document.getElementById("btnLogin");
+const btnSignup = document.getElementById("btnSignup");
+const btnLogout = document.getElementById("btnLogout");
+
+// posts ui
 const feedEl = document.getElementById("feed");
 const btnPost = document.getElementById("btnPost");
-
 const authorEl = document.getElementById("author");
 const subjectEl = document.getElementById("subject");
 const titleEl = document.getElementById("title");
@@ -30,19 +61,18 @@ const bodyEl = document.getElementById("body");
 const linkEl = document.getElementById("link");
 const photoEl = document.getElementById("photo");
 
-// Elementos chat drawer
+// chat ui
 const chatFab = document.getElementById("chatFab");
 const chatBadge = document.getElementById("chatBadge");
 const chatDrawer = document.getElementById("chatDrawer");
 const chatClose = document.getElementById("chatClose");
-
 const chatBox = document.getElementById("chatBox");
 const chatText = document.getElementById("chatText");
 const btnSend = document.getElementById("btnSend");
 
-statusEl.textContent = "Online ✅";
-
-// Helpers
+/* =========================
+   HELPERS
+========================= */
 function escapeHtml(s = "") {
   return s.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
 }
@@ -54,8 +84,100 @@ function isValidUrl(u){
   try { return !!u && new URL(u).protocol.startsWith("http"); }
   catch { return false; }
 }
+function normalizeUser(u){
+  return (u || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9._-]/g, "");
+}
+function emailFromUser(user){
+  const u = normalizeUser(user);
+  return `${u}@grupo.local`;
+}
 
-// Cloudinary upload
+/* =========================
+   AUTH (persistência + telas)
+========================= */
+let currentUser = null;
+
+// Persistência: não pedir login de novo no mesmo aparelho/navegador
+await setPersistence(auth, browserLocalPersistence);
+
+function showLogin(){
+  authScreen.style.display = "block";
+  appScreen.style.display = "none";
+  if (chatFab) chatFab.style.display = "none";
+  if (chatDrawer) chatDrawer.classList.remove("open");
+}
+function showApp(){
+  authScreen.style.display = "none";
+  appScreen.style.display = "block";
+  if (chatFab) chatFab.style.display = "flex";
+  statusEl.textContent = "Online ✅";
+}
+
+onAuthStateChanged(auth, (user) => {
+  currentUser = user || null;
+
+  if (user) {
+    showApp();
+    whoEl.textContent = user.displayName || "Usuário";
+    authorEl.value = user.displayName || "";
+    authorEl.disabled = true; // nome travado (evita fingir)
+  } else {
+    showLogin();
+  }
+});
+
+// Criar conta
+btnSignup.addEventListener("click", async () => {
+  const user = normalizeUser(usernameEl.value);
+  const pass = passwordEl.value;
+
+  if (!user || user.length < 3) return alert("Usuário muito curto (mínimo 3).");
+  if (!pass || pass.length < 6) return alert("Senha fraca (mínimo 6).");
+
+  authStatus.textContent = "Criando conta…";
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, emailFromUser(user), pass);
+    await updateProfile(cred.user, { displayName: user });
+    passwordEl.value = "";
+    authStatus.textContent = "Conta criada ✅";
+  } catch (e) {
+    console.error(e);
+    authStatus.textContent = "Erro ❌";
+    alert("Não consegui criar. Talvez esse usuário já existe.");
+  }
+});
+
+// Entrar
+btnLogin.addEventListener("click", async () => {
+  const user = normalizeUser(usernameEl.value);
+  const pass = passwordEl.value;
+
+  if (!user || !pass) return alert("Preenche usuário e senha.");
+
+  authStatus.textContent = "Entrando…";
+  try {
+    await signInWithEmailAndPassword(auth, emailFromUser(user), pass);
+    passwordEl.value = "";
+    authStatus.textContent = "Entrou ✅";
+  } catch (e) {
+    console.error(e);
+    authStatus.textContent = "Erro ❌";
+    alert("Não consegui entrar. Usuário ou senha inválidos.");
+  }
+});
+
+// Sair
+btnLogout.addEventListener("click", async () => {
+  await signOut(auth);
+});
+
+/* =========================
+   CLOUDINARY (foto opcional)
+========================= */
 async function uploadToCloudinary(file){
   const CLOUD_NAME = "ddlnf32a6";
   const UPLOAD_PRESET = "insta_grupo_unsigned_v2";
@@ -107,11 +229,9 @@ onSnapshot(postsQ, (snap) => {
               loading="lazy" alt="foto">`
       : "";
 
-    const currentName = (authorEl.value.trim() || "Anon");
-    const canDelete = currentName === (p.author || "Anon");
-
+    const canDelete = currentUser && p.uid === currentUser.uid;
     const delBtnHtml = canDelete
-      ? `<button class="btnDel" data-id="${postId}" title="Excluir post">Excluir</button>`
+      ? `<button class="btnDel" data-id="${postId}">Excluir</button>`
       : "";
 
     card.innerHTML = `
@@ -149,19 +269,16 @@ feedEl.addEventListener("click", async (e) => {
 });
 
 btnPost.addEventListener("click", async () => {
-  const author = authorEl.value.trim() || "Anon";
+  if (!currentUser) return alert("Faça login.");
+
   const subject = subjectEl?.value || "Geral";
   const title = titleEl.value.trim();
   const body = bodyEl.value.trim();
   const link = linkEl.value.trim();
 
-  if (!title || !body) {
-    alert("Coloca pelo menos Título e Texto!");
-    return;
-  }
+  if (!title || !body) return alert("Coloca pelo menos Título e Texto!");
 
   const file = photoEl?.files?.[0] || null;
-
   btnPost.disabled = true;
   statusEl.textContent = "Postando… ⏳";
 
@@ -170,7 +287,8 @@ btnPost.addEventListener("click", async () => {
     if (file) imageUrl = await uploadToCloudinary(file);
 
     await addDoc(collection(db, "posts"), {
-      author,
+      uid: currentUser.uid,
+      author: currentUser.displayName || "Usuário",
       subject,
       title,
       body,
@@ -186,7 +304,6 @@ btnPost.addEventListener("click", async () => {
 
     statusEl.textContent = "Postado ✅";
     setTimeout(() => (statusEl.textContent = "Online ✅"), 1200);
-
   } catch (err) {
     console.error(err);
     alert("Erro ao postar: " + (err?.message || "desconhecido"));
@@ -197,7 +314,7 @@ btnPost.addEventListener("click", async () => {
 });
 
 /* =========================
-   CHAT DRAWER (UI + badge)
+   CHAT (drawer + badge + editar/apagar)
 ========================= */
 let chatOpen = false;
 let unread = 0;
@@ -220,160 +337,139 @@ function openChat(){
   chatDrawer.classList.add("open");
   chatDrawer.setAttribute("aria-hidden", "false");
   setBadge(0);
+  if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
 }
-
 function closeChat(){
   chatOpen = false;
   chatDrawer.classList.remove("open");
   chatDrawer.setAttribute("aria-hidden", "true");
 }
 
-chatFab?.addEventListener("click", () => {
-  chatOpen ? closeChat() : openChat();
-});
-
+chatFab?.addEventListener("click", () => chatOpen ? closeChat() : openChat());
 chatClose?.addEventListener("click", closeChat);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeChat(); });
 
-// fechar clicando fora (opcional)
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeChat();
+const chatQ = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+
+onSnapshot(chatQ, (snap) => {
+  chatBox.innerHTML = "";
+
+  if (snap.empty) {
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.textContent = "Sem mensagens ainda. Manda a primeira 👇";
+    chatBox.appendChild(empty);
+    return;
+  }
+
+  let newestIdThisRender = null;
+
+  snap.forEach((docSnap) => {
+    const m = docSnap.data();
+    const msgId = docSnap.id;
+    newestIdThisRender = msgId;
+
+    const div = document.createElement("div");
+    div.className = "chatMsg";
+
+    const canManage = currentUser && m.uid === currentUser.uid;
+    const actions = canManage
+      ? `<div class="chatActions">
+           <button class="chatBtn chatEdit" data-id="${msgId}">Editar</button>
+           <button class="chatBtn chatDel" data-id="${msgId}">Apagar</button>
+         </div>`
+      : "";
+
+    const edited = m.editedAt ? " • editado" : "";
+
+    div.innerHTML = `
+      <div class="chatMeta">
+        <span>👤 ${escapeHtml(m.author || "Anon")}</span>
+        <span>🕒 ${fmtDate(m.createdAt)}${edited}</span>
+      </div>
+      <div class="chatText" style="white-space:pre-wrap">${escapeHtml(m.text || "")}</div>
+      ${actions}
+    `;
+
+    chatBox.appendChild(div);
+  });
+
+  if (newestIdThisRender && lastSeenMsgId && newestIdThisRender !== lastSeenMsgId) {
+    if (!chatOpen) setBadge(unread + 1);
+  }
+  if (!lastSeenMsgId) setBadge(0);
+  lastSeenMsgId = newestIdThisRender;
+
+  if (chatOpen) {
+    chatBox.scrollTop = chatBox.scrollHeight;
+    setBadge(0);
+  }
 });
 
-/* =========================
-   CHAT (tempo real + enviar + editar + apagar)
-========================= */
-if (!chatBox || !chatText || !btnSend) {
-  console.warn("Chat não encontrado no HTML.");
-} else {
-  const chatQ = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+// enviar
+btnSend.addEventListener("click", async () => {
+  if (!currentUser) return alert("Faça login.");
+  const text = chatText.value.trim();
+  if (!text) return;
 
-  onSnapshot(chatQ, (snap) => {
-    chatBox.innerHTML = "";
-
-    if (snap.empty) {
-      const empty = document.createElement("div");
-      empty.className = "muted";
-      empty.textContent = "Sem mensagens ainda. Manda a primeira 👇";
-      chatBox.appendChild(empty);
-      return;
-    }
-
-    const currentName = (authorEl.value.trim() || "Anon");
-    let newestIdThisRender = null;
-
-    snap.forEach((docSnap) => {
-      const m = docSnap.data();
-      const msgId = docSnap.id;
-      newestIdThisRender = msgId;
-
-      const div = document.createElement("div");
-      div.className = "chatMsg";
-
-      const canManage = currentName === (m.author || "Anon");
-      const actions = canManage
-        ? `<div class="chatActions">
-             <button class="chatBtn chatEdit" data-id="${msgId}">Editar</button>
-             <button class="chatBtn chatDel" data-id="${msgId}">Apagar</button>
-           </div>`
-        : "";
-
-      const edited = m.editedAt ? " • editado" : "";
-
-      div.innerHTML = `
-        <div class="chatMeta">
-          <span>👤 ${escapeHtml(m.author || "Anon")}</span>
-          <span>🕒 ${fmtDate(m.createdAt)}${edited}</span>
-        </div>
-        <div class="chatText" style="white-space:pre-wrap">${escapeHtml(m.text || "")}</div>
-        ${actions}
-      `;
-
-      chatBox.appendChild(div);
+  btnSend.disabled = true;
+  try {
+    await addDoc(collection(db, "messages"), {
+      uid: currentUser.uid,
+      author: currentUser.displayName || "Usuário",
+      text,
+      createdAt: serverTimestamp(),
+      editedAt: null
     });
+    chatText.value = "";
+    if (chatOpen) setBadge(0);
+  } catch (e) {
+    console.error(e);
+    alert("Erro ao enviar mensagem");
+  } finally {
+    btnSend.disabled = false;
+  }
+});
 
-    // Badge +1 quando chega msg nova e chat está fechado
-    if (newestIdThisRender && lastSeenMsgId && newestIdThisRender !== lastSeenMsgId) {
-      if (!chatOpen) setBadge(unread + 1);
-    }
-    // se é primeira vez carregando, não conta como nova
-    if (!lastSeenMsgId) setBadge(0);
+// Enter envia (Shift+Enter quebra linha)
+chatText.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    btnSend.click();
+  }
+});
 
-    lastSeenMsgId = newestIdThisRender;
+// editar/apagar
+chatBox.addEventListener("click", async (e) => {
+  const del = e.target.closest(".chatDel");
+  const edit = e.target.closest(".chatEdit");
 
-    // se chat aberto, rola pro final e zera badge
-    if (chatOpen) {
-      chatBox.scrollTop = chatBox.scrollHeight;
-      setBadge(0);
-    } else {
-      // se fechado, não força scroll
-    }
-  });
+  if (del) {
+    const id = del.dataset.id;
+    if (!confirm("Apagar essa mensagem?")) return;
+    try { await deleteDoc(doc(db, "messages", id)); }
+    catch (err) { console.error(err); alert("Não consegui apagar."); }
+    return;
+  }
 
-  // enviar
-  btnSend.addEventListener("click", async () => {
-    const author = authorEl.value.trim() || "Anon";
-    const text = chatText.value.trim();
-    if (!text) return;
+  if (edit) {
+    const id = edit.dataset.id;
+    const msgEl = edit.closest(".chatMsg")?.querySelector(".chatText");
+    const currentText = msgEl?.textContent ?? "";
 
-    btnSend.disabled = true;
+    const newText = prompt("Editar mensagem:", currentText);
+    if (newText === null) return;
+    const trimmed = newText.trim();
+    if (!trimmed) return alert("A mensagem não pode ficar vazia.");
+
     try {
-      await addDoc(collection(db, "messages"), {
-        author,
-        text,
-        createdAt: serverTimestamp(),
-        editedAt: null
+      await updateDoc(doc(db, "messages", id), {
+        text: trimmed,
+        editedAt: serverTimestamp()
       });
-      chatText.value = "";
-      // se chat aberto, mantém badge 0
-      if (chatOpen) setBadge(0);
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao enviar mensagem");
-    } finally {
-      btnSend.disabled = false;
+    } catch (err) {
+      console.error(err);
+      alert("Não consegui editar.");
     }
-  });
-
-  // Enter envia (Shift+Enter quebra linha)
-  chatText.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      btnSend.click();
-    }
-  });
-
-  // editar/apagar (delegação)
-  chatBox.addEventListener("click", async (e) => {
-    const del = e.target.closest(".chatDel");
-    const edit = e.target.closest(".chatEdit");
-
-    if (del) {
-      const id = del.dataset.id;
-      if (!confirm("Apagar essa mensagem?")) return;
-      try { await deleteDoc(doc(db, "messages", id)); }
-      catch (err) { console.error(err); alert("Não consegui apagar."); }
-      return;
-    }
-
-    if (edit) {
-      const id = edit.dataset.id;
-      const msgEl = edit.closest(".chatMsg")?.querySelector(".chatText");
-      const currentText = msgEl?.textContent ?? "";
-
-      const newText = prompt("Editar mensagem:", currentText);
-      if (newText === null) return;
-      const trimmed = newText.trim();
-      if (!trimmed) return alert("A mensagem não pode ficar vazia.");
-
-      try {
-        await updateDoc(doc(db, "messages", id), {
-          text: trimmed,
-          editedAt: serverTimestamp()
-        });
-      } catch (err) {
-        console.error(err);
-        alert("Não consegui editar.");
-      }
-    }
-  });
-}
+  }
+});
