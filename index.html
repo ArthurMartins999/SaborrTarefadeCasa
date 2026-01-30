@@ -61,6 +61,7 @@
     <div class="card">
       <div class="row">
         <input id="author" placeholder="Seu nome" />
+
         <select id="subject">
           <option value="Geral">Geral</option>
           <option>Matemática</option>
@@ -72,6 +73,11 @@
           <option>Biologia</option>
           <option>Inglês</option>
         </select>
+
+        <!-- Professor (vai ser preenchido via JS) -->
+        <select id="teacher" disabled>
+          <option value="">Professor (selecione a matéria)</option>
+        </select>
       </div>
 
       <div class="grid" style="margin-top:10px">
@@ -81,15 +87,29 @@
 
         <div class="row" style="align-items:center;justify-content:space-between">
           <div class="muted">Tudo aparece pra todo mundo em tempo real ✅</div>
-          <input type="file" id="photo" accept="image/*" />
-          <button id="btnPost">Publicar</button>
+
+          <!-- Botão custom de upload -->
+          <label class="fileBtn">
+            📷 Escolher foto
+            <input type="file" id="photo" accept="image/*" hidden />
+          </label>
         </div>
+
+        <!-- Preview + Remover (compatível com o JS completo) -->
+        <div class="photoPreviewWrap" hidden id="photoPreviewWrap">
+          <img id="photoPreview" class="photoPreview" alt="preview da foto">
+          <button type="button" id="removePhoto" class="removePhoto">✕ Remover foto</button>
+        </div>
+
+        <!-- Botão publicar fica aqui embaixo -->
+        <button id="btnPost">Publicar</button>
       </div>
     </div>
 
     <!-- FEED -->
     <div class="feed" id="feed"></div>
   </div>
+
 
   <!-- Botão flutuante do chat -->
   <button id="chatFab" class="chatFab" aria-label="Abrir chat" style="display:none">
@@ -109,6 +129,14 @@
     <div class="chatBottom">
       <textarea id="chatText" placeholder="Mensagem..." rows="2"></textarea>
       <button id="btnSend">Enviar</button>
+    </div>
+  </div>
+
+  <!-- ✅ Modal de imagem (compatível com o JS completo) -->
+  <div id="imgModal" class="imgModal" aria-hidden="true">
+    <button id="imgModalClose" class="imgModalClose" aria-label="Fechar imagem">✕</button>
+    <div class="imgModalInner" role="dialog" aria-modal="true">
+      <img id="imgModalSrc" alt="imagem ampliada">
     </div>
   </div>
 

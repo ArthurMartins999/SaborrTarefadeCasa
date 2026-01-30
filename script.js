@@ -52,6 +52,40 @@ function admTagHtml(uid) {
 }
 
 /* =========================
+   ✅ MATÉRIA -> PROFESSORES
+========================= */
+const SUBJECT_TEACHERS = {
+  "Geral": [],
+  "Matemática": ["Júlia", "Fernando", "Catenassi", "A1000🚗"],
+  "Português": ["Marcela", "Michely"],
+  "Física": ["Ramiro", "Sostag"],
+  "Química": ["Iury", "Tércio"],
+  "Biologia": ["Paulo Henrique", "Robyson"],
+  "Geografia": ["Jibran", "Thelma"],
+  "História": ["Itamar", "Melo"],
+  "Inglês": ["Tom"]
+};
+
+function fillTeacherOptions(subjectValue) {
+  const list = SUBJECT_TEACHERS[subjectValue] || [];
+  teacherEl.innerHTML = `<option value="">Professor</option>`;
+
+  if (!list.length) {
+    teacherEl.disabled = true;
+    teacherEl.innerHTML = `<option value="">Professor (opcional)</option>`;
+    return;
+  }
+
+  list.forEach((name) => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    teacherEl.appendChild(opt);
+  });
+  teacherEl.disabled = false;
+}
+
+/* =========================
    ELEMENTOS
 ========================= */
 // telas
@@ -75,10 +109,16 @@ const feedEl = document.getElementById("feed");
 const btnPost = document.getElementById("btnPost");
 const authorEl = document.getElementById("author");
 const subjectEl = document.getElementById("subject");
+const teacherEl = document.getElementById("teacher");
 const titleEl = document.getElementById("title");
 const bodyEl = document.getElementById("body");
 const linkEl = document.getElementById("link");
 const photoEl = document.getElementById("photo");
+
+// preview + remover foto (NOVO)
+const photoPreviewWrap = document.getElementById("photoPreviewWrap");
+const photoPreview = document.getElementById("photoPreview");
+const removePhotoBtn = document.getElementById("removePhoto");
 
 // chat ui
 const chatFab = document.getElementById("chatFab");
@@ -88,6 +128,11 @@ const chatClose = document.getElementById("chatClose");
 const chatBox = document.getElementById("chatBox");
 const chatText = document.getElementById("chatText");
 const btnSend = document.getElementById("btnSend");
+
+// modal imagem (zoom)
+const imgModal = document.getElementById("imgModal");
+const imgModalSrc = document.getElementById("imgModalSrc");
+const imgModalClose = document.getElementById("imgModalClose");
 
 /* =========================
    HELPERS
@@ -114,6 +159,40 @@ function emailFromUser(user){
   const u = normalizeUser(user);
   return `${u}@grupo.local`;
 }
+
+/* =========================
+   ✅ PREVIEW AO SELECIONAR FOTO + REMOVER FOTO
+========================= */
+photoEl?.addEventListener("change", () => {
+  const file = photoEl.files?.[0];
+
+  if (!file) {
+    if (photoPreviewWrap) photoPreviewWrap.hidden = true;
+    if (photoPreview) photoPreview.src = "";
+    return;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    alert("Escolhe um arquivo de imagem (PNG/JPG).");
+    photoEl.value = "";
+    if (photoPreviewWrap) photoPreviewWrap.hidden = true;
+    if (photoPreview) photoPreview.src = "";
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    if (photoPreview) photoPreview.src = e.target.result;
+    if (photoPreviewWrap) photoPreviewWrap.hidden = false;
+  };
+  reader.readAsDataURL(file);
+});
+
+removePhotoBtn?.addEventListener("click", () => {
+  if (photoEl) photoEl.value = "";
+  if (photoPreview) photoPreview.src = "";
+  if (photoPreviewWrap) photoPreviewWrap.hidden = true;
+});
 
 /* =========================
    AUTH (persistência + telas)
@@ -147,11 +226,18 @@ onAuthStateChanged(auth, (user) => {
     authorEl.value = me;
     authorEl.disabled = true;
 
-    // pequeno indicador no status se for ADM
+    // inicia professor conforme matéria
+    fillTeacherOptions(subjectEl?.value || "Geral");
+
     if (isAdmin()) statusEl.textContent = "Online ✅ (ADM)";
   } else {
     showLogin();
   }
+});
+
+// quando trocar a matéria, atualiza professores
+subjectEl?.addEventListener("change", () => {
+  fillTeacherOptions(subjectEl.value);
 });
 
 // Criar conta
@@ -248,21 +334,27 @@ onSnapshot(postsQ, (snap) => {
       : "";
 
     const imgHtml = p.imageUrl
-      ? `<img src="${escapeHtml(p.imageUrl)}"
-              style="width:100%;border-radius:12px;margin-top:10px;border:1px solid var(--line);background:#0f1424"
-              loading="lazy" alt="foto">`
+      ? `<img
+           src="${escapeHtml(p.imageUrl)}"
+           class="postImg"
+           data-src="${escapeHtml(p.imageUrl)}"
+           loading="lazy"
+           alt="foto">`
       : "";
 
-    // ✅ dono OU ADM
     const canDelete = currentUser && (p.uid === currentUser.uid || isAdmin());
-
     const delBtnHtml = canDelete
       ? `<button class="btnDel" data-id="${postId}">Excluir</button>`
       : "";
 
+    const teacherHtml = p.teacher
+      ? `<span class="pill">👨‍🏫 ${escapeHtml(p.teacher)}</span>`
+      : ``;
+
     card.innerHTML = `
       <div class="meta" style="align-items:center">
         <span class="pill">📚 ${escapeHtml(p.subject || "Geral")}</span>
+        ${teacherHtml}
         <span class="pill">
           👤 ${escapeHtml(p.author || "Anon")}
           ${admTagHtml(p.uid)}
@@ -271,7 +363,7 @@ onSnapshot(postsQ, (snap) => {
         ${delBtnHtml}
       </div>
 
-      <p class="title" style="margin-top:10px">${escapeHtml(p.title || "Sem título")}</p>
+      <p class="title" style="margin-top:12px">${escapeHtml(p.title || "Sem título")}</p>
       <p class="content">${escapeHtml(p.body || "")}</p>
 
       ${imgHtml}
@@ -301,6 +393,7 @@ btnPost.addEventListener("click", async () => {
   if (!currentUser) return alert("Faça login.");
 
   const subject = subjectEl?.value || "Geral";
+  const teacher = teacherEl?.disabled ? "" : (teacherEl?.value || "");
   const title = titleEl.value.trim();
   const body = bodyEl.value.trim();
   const link = linkEl.value.trim();
@@ -320,6 +413,7 @@ btnPost.addEventListener("click", async () => {
       uid: currentUser.uid,
       author: currentUser.displayName || "Usuário",
       subject,
+      teacher,
       title,
       body,
       link: isValidUrl(link) ? link : "",
@@ -331,6 +425,11 @@ btnPost.addEventListener("click", async () => {
     bodyEl.value = "";
     linkEl.value = "";
     if (photoEl) photoEl.value = "";
+    if (!teacherEl.disabled) teacherEl.value = "";
+
+    // limpa preview
+    if (photoPreviewWrap) photoPreviewWrap.hidden = true;
+    if (photoPreview) photoPreview.src = "";
 
     statusEl.textContent = "Postado ✅";
     setTimeout(() => (statusEl.textContent = isAdmin() ? "Online ✅ (ADM)" : "Online ✅"), 1200);
@@ -341,6 +440,147 @@ btnPost.addEventListener("click", async () => {
   } finally {
     btnPost.disabled = false;
   }
+});
+
+/* =========================
+   ✅ MODAL + ZOOM (SEM ALERT BUGADO)
+========================= */
+let ignoreImgError = false;
+
+let zoomScale = 1;
+let panX = 0;
+let panY = 0;
+
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+function applyTransform(){
+  if (!imgModalSrc) return;
+  imgModalSrc.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
+}
+
+function resetZoom(){
+  zoomScale = 1;
+  panX = 0;
+  panY = 0;
+  applyTransform();
+  if (imgModalSrc) imgModalSrc.style.cursor = "zoom-in";
+}
+
+function openModalWithSrc(src){
+  if (!imgModal || !imgModalSrc) return;
+
+  ignoreImgError = false;
+
+  imgModal.classList.add("open");
+  imgModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+
+  imgModalSrc.onerror = null;
+  imgModalSrc.onerror = () => {
+    if (ignoreImgError || !imgModal.classList.contains("open")) return;
+    closeModal();
+    // recomendo deixar só console (sem alert)
+    console.warn("Falha ao carregar imagem:", src);
+  };
+
+  imgModalSrc.src = src;
+  resetZoom();
+}
+
+function closeModal(){
+  if (!imgModal || !imgModalSrc) return;
+
+  ignoreImgError = true;
+  imgModalSrc.onerror = null;
+
+  imgModal.classList.remove("open");
+  imgModal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+
+  imgModalSrc.src = "about:blank";
+  resetZoom();
+
+  setTimeout(() => { ignoreImgError = false; }, 150);
+}
+
+// clicar na imagem do feed abre modal
+feedEl.addEventListener("click", (e) => {
+  const img = e.target.closest(".postImg");
+  if (!img) return;
+  const src = img.getAttribute("data-src") || img.src;
+  openModalWithSrc(src);
+});
+
+// fechar modal
+imgModalClose?.addEventListener("click", closeModal);
+imgModal?.addEventListener("click", (e) => { if (e.target === imgModal) closeModal(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && imgModal?.classList.contains("open")) closeModal();
+});
+
+// scroll zoom
+imgModal?.addEventListener("wheel", (e) => {
+  if (!imgModal.classList.contains("open")) return;
+  e.preventDefault();
+
+  const delta = Math.sign(e.deltaY);
+  const factor = delta > 0 ? 0.9 : 1.1;
+
+  zoomScale = clamp(zoomScale * factor, 1, 4);
+
+  if (zoomScale === 1) {
+    panX = 0; panY = 0;
+    if (imgModalSrc) imgModalSrc.style.cursor = "zoom-in";
+  } else {
+    if (imgModalSrc) imgModalSrc.style.cursor = "grab";
+  }
+
+  applyTransform();
+}, { passive: false });
+
+// arrastar (pan) só se zoom > 1
+imgModalSrc?.addEventListener("pointerdown", (e) => {
+  if (!imgModal?.classList.contains("open")) return;
+  if (zoomScale <= 1) return;
+
+  isPanning = true;
+  imgModalSrc.setPointerCapture(e.pointerId);
+  panStartX = e.clientX - panX;
+  panStartY = e.clientY - panY;
+  imgModalSrc.style.cursor = "grabbing";
+});
+
+imgModalSrc?.addEventListener("pointermove", (e) => {
+  if (!isPanning) return;
+  panX = e.clientX - panStartX;
+  panY = e.clientY - panStartY;
+  applyTransform();
+});
+
+function stopPan(){
+  isPanning = false;
+  if (imgModalSrc) imgModalSrc.style.cursor = (zoomScale > 1 ? "grab" : "zoom-in");
+}
+imgModalSrc?.addEventListener("pointerup", stopPan);
+imgModalSrc?.addEventListener("pointercancel", stopPan);
+
+// duplo clique: 1x <-> 2x
+imgModalSrc?.addEventListener("dblclick", (e) => {
+  if (!imgModal?.classList.contains("open")) return;
+  e.preventDefault();
+
+  if (zoomScale === 1) {
+    zoomScale = 2;
+  } else {
+    zoomScale = 1;
+    panX = 0; panY = 0;
+  }
+  stopPan();
+  applyTransform();
 });
 
 /* =========================
@@ -406,7 +646,6 @@ onSnapshot(chatQ, (snap) => {
     const div = document.createElement("div");
     div.className = "chatMsg";
 
-    // ✅ dono OU ADM
     const canManage = currentUser && (m.uid === currentUser.uid || isAdmin());
 
     const actions = canManage
