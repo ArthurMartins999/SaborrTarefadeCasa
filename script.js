@@ -41,18 +41,12 @@ const ADMINS = [
 ];
 
 let currentUser = null;
-function isAdminUser(uid) {
-  return ADMINS.includes(uid);
-}
-function isAdmin() {
-  return currentUser && isAdminUser(currentUser.uid);
-}
-function admTagHtml(uid) {
-  return isAdminUser(uid) ? ` <span class="badgeAdm">ADM</span>` : "";
-}
+function isAdminUser(uid) { return ADMINS.includes(uid); }
+function isAdmin() { return currentUser && isAdminUser(currentUser.uid); }
+function admTagHtml(uid) { return isAdminUser(uid) ? ` <span class="badgeAdm">ADM</span>` : ""; }
 
 /* =========================
-   ✅ MATÉRIA -> PROFESSORES
+   MATÉRIA -> PROFESSORES
 ========================= */
 const SUBJECT_TEACHERS = {
   "Geral": [],
@@ -115,10 +109,10 @@ const bodyEl = document.getElementById("body");
 const linkEl = document.getElementById("link");
 const photoEl = document.getElementById("photo");
 
-// preview + remover foto (NOVO)
+// preview multi
 const photoPreviewWrap = document.getElementById("photoPreviewWrap");
-const photoPreview = document.getElementById("photoPreview");
-const removePhotoBtn = document.getElementById("removePhoto");
+const photoPreviewList = document.getElementById("photoPreviewList");
+const removeAllPhotos = document.getElementById("removeAllPhotos");
 
 // chat ui
 const chatFab = document.getElementById("chatFab");
@@ -129,7 +123,7 @@ const chatBox = document.getElementById("chatBox");
 const chatText = document.getElementById("chatText");
 const btnSend = document.getElementById("btnSend");
 
-// modal imagem (zoom)
+// modal imagem
 const imgModal = document.getElementById("imgModal");
 const imgModalSrc = document.getElementById("imgModalSrc");
 const imgModalClose = document.getElementById("imgModalClose");
@@ -161,37 +155,85 @@ function emailFromUser(user){
 }
 
 /* =========================
-   ✅ PREVIEW AO SELECIONAR FOTO + REMOVER FOTO
+   ✅ MULTI-IMAGENS
+   - seleciona várias de uma vez
+   - pode selecionar de novo e SOMAR
+   - preview + remover 1 + remover todas
 ========================= */
+let selectedFiles = [];
+
+function syncInputFiles(){
+  if (!photoEl) return;
+  const dt = new DataTransfer();
+  selectedFiles.forEach(f => dt.items.add(f));
+  photoEl.files = dt.files;
+}
+
+function renderPreviews(){
+  if (!photoPreviewWrap || !photoPreviewList) return;
+
+  photoPreviewList.innerHTML = "";
+
+  if (selectedFiles.length === 0) {
+    photoPreviewWrap.hidden = true;
+    return;
+  }
+
+  photoPreviewWrap.hidden = false;
+
+  selectedFiles.forEach((file, idx) => {
+    const url = URL.createObjectURL(file);
+
+    const div = document.createElement("div");
+    div.className = "photoThumb";
+    div.innerHTML = `
+      <img src="${url}" alt="preview ${idx+1}">
+      <button type="button" title="Remover">✕</button>
+    `;
+
+    div.querySelector("button").addEventListener("click", () => {
+      selectedFiles.splice(idx, 1);
+      syncInputFiles();
+      renderPreviews();
+    });
+
+    photoPreviewList.appendChild(div);
+  });
+}
+
 photoEl?.addEventListener("change", () => {
-  const file = photoEl.files?.[0];
+  const files = Array.from(photoEl.files || []);
 
-  if (!file) {
-    if (photoPreviewWrap) photoPreviewWrap.hidden = true;
-    if (photoPreview) photoPreview.src = "";
-    return;
+  // valida
+  for (const f of files) {
+    if (!f.type.startsWith("image/")) {
+      alert("Escolhe apenas imagens (JPG/PNG).");
+      return;
+    }
   }
 
-  if (!file.type.startsWith("image/")) {
-    alert("Escolhe um arquivo de imagem (PNG/JPG).");
-    photoEl.value = "";
-    if (photoPreviewWrap) photoPreviewWrap.hidden = true;
-    if (photoPreview) photoPreview.src = "";
-    return;
-  }
+  // ✅ SOMA seleções
+  selectedFiles = [...selectedFiles, ...files];
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    if (photoPreview) photoPreview.src = e.target.result;
-    if (photoPreviewWrap) photoPreviewWrap.hidden = false;
-  };
-  reader.readAsDataURL(file);
+  // evita duplicar pelo mesmo nome/tamanho (opcional)
+  const uniq = [];
+  const seen = new Set();
+  for (const f of selectedFiles) {
+    const key = `${f.name}-${f.size}-${f.lastModified}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniq.push(f);
+  }
+  selectedFiles = uniq;
+
+  syncInputFiles();
+  renderPreviews();
 });
 
-removePhotoBtn?.addEventListener("click", () => {
+removeAllPhotos?.addEventListener("click", () => {
+  selectedFiles = [];
   if (photoEl) photoEl.value = "";
-  if (photoPreview) photoPreview.src = "";
-  if (photoPreviewWrap) photoPreviewWrap.hidden = true;
+  renderPreviews();
 });
 
 /* =========================
@@ -204,6 +246,7 @@ function showLogin(){
   appScreen.style.display = "none";
   if (chatFab) chatFab.style.display = "none";
   if (chatDrawer) chatDrawer.classList.remove("open");
+  document.body.classList.remove("modal-open");
 }
 
 function showApp(){
@@ -222,11 +265,9 @@ onAuthStateChanged(auth, (user) => {
     const me = user.displayName || "Usuário";
     whoEl.textContent = me;
 
-    // trava o nome pra não fingir
     authorEl.value = me;
     authorEl.disabled = true;
 
-    // inicia professor conforme matéria
     fillTeacherOptions(subjectEl?.value || "Geral");
 
     if (isAdmin()) statusEl.textContent = "Online ✅ (ADM)";
@@ -235,7 +276,6 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// quando trocar a matéria, atualiza professores
 subjectEl?.addEventListener("change", () => {
   fillTeacherOptions(subjectEl.value);
 });
@@ -286,7 +326,7 @@ btnLogout.addEventListener("click", async () => {
 });
 
 /* =========================
-   CLOUDINARY (foto opcional)
+   CLOUDINARY (multi upload)
 ========================= */
 async function uploadToCloudinary(file){
   const CLOUD_NAME = "ddlnf32a6";
@@ -308,6 +348,8 @@ async function uploadToCloudinary(file){
 
 /* =========================
    POSTS (feed + criar + excluir)
+   - compat: post antigo com imageUrl
+   - novo: imageUrls []
 ========================= */
 const postsQ = query(collection(db, "posts"), orderBy("createdAt", "desc"));
 
@@ -333,13 +375,23 @@ onSnapshot(postsQ, (snap) => {
       ? `<div class="meta"><span class="pill">🔗 <a href="${escapeHtml(p.link)}" target="_blank" rel="noreferrer">Abrir link</a></span></div>`
       : "";
 
-    const imgHtml = p.imageUrl
-      ? `<img
-           src="${escapeHtml(p.imageUrl)}"
-           class="postImg"
-           data-src="${escapeHtml(p.imageUrl)}"
-           loading="lazy"
-           alt="foto">`
+    // ✅ compatibilidade
+    const urls = Array.isArray(p.imageUrls)
+      ? p.imageUrls
+      : (p.imageUrl ? [p.imageUrl] : []);
+
+    const imgsHtml = urls.length
+      ? `<div class="postImgs">
+          ${urls.map(u => `
+            <img
+              src="${escapeHtml(u)}"
+              class="postImg"
+              data-src="${escapeHtml(u)}"
+              loading="lazy"
+              alt="foto"
+            >
+          `).join("")}
+        </div>`
       : "";
 
     const canDelete = currentUser && (p.uid === currentUser.uid || isAdmin());
@@ -366,7 +418,7 @@ onSnapshot(postsQ, (snap) => {
       <p class="title" style="margin-top:12px">${escapeHtml(p.title || "Sem título")}</p>
       <p class="content">${escapeHtml(p.body || "")}</p>
 
-      ${imgHtml}
+      ${imgsHtml}
       ${linkHtml}
     `;
 
@@ -374,18 +426,26 @@ onSnapshot(postsQ, (snap) => {
   });
 });
 
+// click feed: excluir OU abrir modal
 feedEl.addEventListener("click", async (e) => {
   const btnDel = e.target.closest(".btnDel");
-  if (!btnDel) return;
+  if (btnDel) {
+    const id = btnDel.dataset.id;
+    if (!confirm("Quer excluir esse post?")) return;
 
-  const id = btnDel.dataset.id;
-  if (!confirm("Quer excluir esse post?")) return;
+    try {
+      await deleteDoc(doc(db, "posts", id));
+    } catch (err) {
+      console.error(err);
+      alert("Não consegui excluir. Veja o Console (F12).");
+    }
+    return;
+  }
 
-  try {
-    await deleteDoc(doc(db, "posts", id));
-  } catch (err) {
-    console.error(err);
-    alert("Não consegui excluir. Veja o Console (F12).");
+  const img = e.target.closest(".postImg");
+  if (img) {
+    const src = img.getAttribute("data-src") || img.src;
+    openModalWithSrc(src);
   }
 });
 
@@ -400,14 +460,16 @@ btnPost.addEventListener("click", async () => {
 
   if (!title || !body) return alert("Coloca pelo menos Título e Texto!");
 
-  const file = photoEl?.files?.[0] || null;
+  const files = [...selectedFiles];
 
   btnPost.disabled = true;
   statusEl.textContent = "Postando… ⏳";
 
   try {
-    let imageUrl = "";
-    if (file) imageUrl = await uploadToCloudinary(file);
+    let imageUrls = [];
+    if (files.length) {
+      imageUrls = await Promise.all(files.map(uploadToCloudinary));
+    }
 
     await addDoc(collection(db, "posts"), {
       uid: currentUser.uid,
@@ -417,7 +479,7 @@ btnPost.addEventListener("click", async () => {
       title,
       body,
       link: isValidUrl(link) ? link : "",
-      imageUrl,
+      imageUrls,
       createdAt: serverTimestamp()
     });
 
@@ -427,9 +489,8 @@ btnPost.addEventListener("click", async () => {
     if (photoEl) photoEl.value = "";
     if (!teacherEl.disabled) teacherEl.value = "";
 
-    // limpa preview
-    if (photoPreviewWrap) photoPreviewWrap.hidden = true;
-    if (photoPreview) photoPreview.src = "";
+    selectedFiles = [];
+    renderPreviews();
 
     statusEl.textContent = "Postado ✅";
     setTimeout(() => (statusEl.textContent = isAdmin() ? "Online ✅ (ADM)" : "Online ✅"), 1200);
@@ -443,10 +504,8 @@ btnPost.addEventListener("click", async () => {
 });
 
 /* =========================
-   ✅ MODAL + ZOOM (SEM ALERT BUGADO)
+   MODAL + ZOOM/PAN (SEM BUG)
 ========================= */
-let ignoreImgError = false;
-
 let zoomScale = 1;
 let panX = 0;
 let panY = 0;
@@ -473,19 +532,9 @@ function resetZoom(){
 function openModalWithSrc(src){
   if (!imgModal || !imgModalSrc) return;
 
-  ignoreImgError = false;
-
   imgModal.classList.add("open");
   imgModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
-
-  imgModalSrc.onerror = null;
-  imgModalSrc.onerror = () => {
-    if (ignoreImgError || !imgModal.classList.contains("open")) return;
-    closeModal();
-    // recomendo deixar só console (sem alert)
-    console.warn("Falha ao carregar imagem:", src);
-  };
 
   imgModalSrc.src = src;
   resetZoom();
@@ -494,55 +543,36 @@ function openModalWithSrc(src){
 function closeModal(){
   if (!imgModal || !imgModalSrc) return;
 
-  ignoreImgError = true;
-  imgModalSrc.onerror = null;
-
   imgModal.classList.remove("open");
   imgModal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
 
   imgModalSrc.src = "about:blank";
   resetZoom();
-
-  setTimeout(() => { ignoreImgError = false; }, 150);
 }
 
-// clicar na imagem do feed abre modal
-feedEl.addEventListener("click", (e) => {
-  const img = e.target.closest(".postImg");
-  if (!img) return;
-  const src = img.getAttribute("data-src") || img.src;
-  openModalWithSrc(src);
-});
-
-// fechar modal
 imgModalClose?.addEventListener("click", closeModal);
 imgModal?.addEventListener("click", (e) => { if (e.target === imgModal) closeModal(); });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && imgModal?.classList.contains("open")) closeModal();
 });
 
-// scroll zoom
+// zoom scroll
 imgModal?.addEventListener("wheel", (e) => {
   if (!imgModal.classList.contains("open")) return;
   e.preventDefault();
 
   const delta = Math.sign(e.deltaY);
   const factor = delta > 0 ? 0.9 : 1.1;
-
   zoomScale = clamp(zoomScale * factor, 1, 4);
 
-  if (zoomScale === 1) {
-    panX = 0; panY = 0;
-    if (imgModalSrc) imgModalSrc.style.cursor = "zoom-in";
-  } else {
-    if (imgModalSrc) imgModalSrc.style.cursor = "grab";
-  }
+  if (zoomScale === 1) { panX = 0; panY = 0; }
 
+  imgModalSrc.style.cursor = (zoomScale > 1 ? "grab" : "zoom-in");
   applyTransform();
 }, { passive: false });
 
-// arrastar (pan) só se zoom > 1
+// pan
 imgModalSrc?.addEventListener("pointerdown", (e) => {
   if (!imgModal?.classList.contains("open")) return;
   if (zoomScale <= 1) return;
@@ -568,7 +598,7 @@ function stopPan(){
 imgModalSrc?.addEventListener("pointerup", stopPan);
 imgModalSrc?.addEventListener("pointercancel", stopPan);
 
-// duplo clique: 1x <-> 2x
+// dblclick 1x <-> 2x
 imgModalSrc?.addEventListener("dblclick", (e) => {
   if (!imgModal?.classList.contains("open")) return;
   e.preventDefault();

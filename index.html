@@ -6,7 +6,7 @@
   <title>Tarefas do Grupo</title>
 
   <link rel="stylesheet" href="style.css" />
-  <link rel="icon" href="favicon.png" />
+  <link rel="icon" href="./favicon.ico">
 </head>
 
 <body>
@@ -74,7 +74,7 @@
           <option>Inglês</option>
         </select>
 
-        <!-- Professor (vai ser preenchido via JS) -->
+        <!-- ✅ professor -->
         <select id="teacher" disabled>
           <option value="">Professor (selecione a matéria)</option>
         </select>
@@ -88,20 +88,23 @@
         <div class="row" style="align-items:center;justify-content:space-between">
           <div class="muted">Tudo aparece pra todo mundo em tempo real ✅</div>
 
-          <!-- Botão custom de upload -->
+          <!-- ✅ MULTI-FOTO -->
           <label class="fileBtn">
-            📷 Escolher foto
-            <input type="file" id="photo" accept="image/*" hidden />
+            📷 Escolher fotos
+            <input type="file" id="photo" accept="image/*" multiple hidden />
           </label>
         </div>
 
-        <!-- Preview + Remover (compatível com o JS completo) -->
-        <div class="photoPreviewWrap" hidden id="photoPreviewWrap">
-          <img id="photoPreview" class="photoPreview" alt="preview da foto">
-          <button type="button" id="removePhoto" class="removePhoto">✕ Remover foto</button>
+        <!-- ✅ Preview multi -->
+        <div id="photoPreviewWrap" class="photoPreviewWrap" hidden>
+          <div class="muted" style="margin-top:6px">Prévia (clique no ✕ pra remover uma)</div>
+          <div id="photoPreviewList" class="photoPreviewList"></div>
+
+          <div class="row" style="margin-top:10px">
+            <button type="button" id="removeAllPhotos" class="btnGhost">Remover todas</button>
+          </div>
         </div>
 
-        <!-- Botão publicar fica aqui embaixo -->
         <button id="btnPost">Publicar</button>
       </div>
     </div>
@@ -132,7 +135,7 @@
     </div>
   </div>
 
-  <!-- ✅ Modal de imagem (compatível com o JS completo) -->
+  <!-- ✅ Modal imagem -->
   <div id="imgModal" class="imgModal" aria-hidden="true">
     <button id="imgModalClose" class="imgModalClose" aria-label="Fechar imagem">✕</button>
     <div class="imgModalInner" role="dialog" aria-modal="true">
