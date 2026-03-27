@@ -135,6 +135,30 @@
     </div>
   </div>
 
+  <!-- Botão flutuante da IA -->
+<button id="aiFab" class="aiFab" aria-label="Abrir assistente IA" style="display:none">
+  🤖
+</button>
+
+<!-- Drawer da IA -->
+<div id="aiDrawer" class="aiDrawer" aria-hidden="true">
+  <div class="aiTop">
+    <div class="aiTopTitle">🤖 Assistente IA</div>
+    <button id="aiClose" class="aiClose" aria-label="Fechar">✕</button>
+  </div>
+
+  <div id="aiBox" class="aiBox">
+    <div class="aiEmpty">
+      Pergunte sobre tarefas, conteúdos, resumo de prova e dúvidas.
+    </div>
+  </div>
+
+  <div class="aiBottom">
+    <textarea id="aiText" placeholder="Digite sua pergunta..." rows="3"></textarea>
+    <button id="btnAiSend">Enviar</button>
+  </div>
+</div>
+
   <!-- ✅ Modal imagem -->
   <div id="imgModal" class="imgModal" aria-hidden="true">
     <button id="imgModalClose" class="imgModalClose" aria-label="Fechar imagem">✕</button>
@@ -143,6 +167,6 @@
     </div>
   </div>
 
-  <script type="module" src="Js/script.js"></script>
+  <script type="module" src="js/script.js"></script>
 </body>
 </html>
