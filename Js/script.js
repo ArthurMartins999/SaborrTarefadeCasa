@@ -31,19 +31,15 @@ import {
    -> COLE AQUI A SUA CONFIG ORIGINAL DO FIREBASE E CLOUDINARY
 ========================================================= */
 const CONFIG = {
+
   firebase: {
- apiKey: "AIzaSyDbfX_DvlefT_3TrTZPX9Me0RxDVAas_M0",
+    apiKey: "AIzaSyDbfX_DvlefT_3TrTZPX9Me0RxDVAas_M0",
     authDomain: "as-tarefas.firebaseapp.com",
     projectId: "as-tarefas",
     storageBucket: "as-tarefas.firebasestorage.app",
     messagingSenderId: "1054687052156",
     appId: "1:1054687052156:web:d8440548f0a4ba029724f9",
     measurementId: "G-HSS8K8H14R"
-  },
-
-  cloudinary: {
-    cloudName: "COLE_SEU_CLOUD_NAME",
-    uploadPreset: "COLE_SEU_UPLOAD_PRESET"
   },
 
   admins: [
