@@ -30,9 +30,9 @@ import {
    CONFIG
    -> COLE AQUI A SUA CONFIG ORIGINAL DO FIREBASE E CLOUDINARY
 ========================================================= */
-const CONFIG = {
 
-  firebase: {
+const CONFIG = {
+    firebase: {
     apiKey: "AIzaSyDbfX_DvlefT_3TrTZPX9Me0RxDVAas_M0",
     authDomain: "as-tarefas.firebaseapp.com",
     projectId: "as-tarefas",
@@ -42,9 +42,16 @@ const CONFIG = {
     measurementId: "G-HSS8K8H14R"
   },
 
+  cloudinary: {
+    cloudName: "ddlnf32a6",
+    uploadPreset: "insta_grupo_unsigned_v2"
+  },
+
   admins: [
-    // coloque UIDs admin aqui se quiser
+    "jZvf3RDntVQxRFU9jRFi3hS4wjU2",
+    "fMCWcyQ2odZZ05I480JEWZhiXts2"
   ],
+ 
 
   subjectTeachers: {
     "Geral": [],
@@ -910,12 +917,15 @@ const aiAssistant = {
     }
 
     STATE.ai.messages.forEach((msg) => {
+      const isUser = msg.role === "user";
+      const who = isUser ? "Você" : "IA";
+
       const wrap = document.createElement("div");
-      wrap.className = `aiMsg ${msg.role === "user" ? "me" : "bot"}`;
+      wrap.className = `aiMsg ${isUser ? "me" : "bot"}`;
 
       wrap.innerHTML = `
         <div class="aiBubble">${utils.escapeHtml(msg.text || "")}</div>
-        <div class="aiMeta">${msg.role === "user" ? "Você" : "IA"} • ${aiAssistant.fmtTime(msg.createdAt)}</div>
+        <div class="aiMeta">${who} • ${aiAssistant.fmtTime(msg.createdAt)}</div>
       `;
 
       el.aiBox.appendChild(wrap);
@@ -936,24 +946,6 @@ const aiAssistant = {
     await services.db.saveAiChat(STATE.user.uid, STATE.ai.messages);
   },
 
-  async fakeReply(prompt) {
-    const lower = prompt.toLowerCase();
-
-    if (lower.includes("resumo")) {
-      return "Aqui vai um resumo inicial: organize o tema em definição, pontos principais e conclusão. Depois eu posso deixar isso mais forte e mais curto.";
-    }
-
-    if (lower.includes("prova") || lower.includes("revis")) {
-      return "Para revisar prova, eu sugiro: conceito, exemplo e exercício rápido. Depois vamos ligar uma IA real para responder melhor.";
-    }
-
-    if (lower.includes("matem")) {
-      return "Manda a questão completa de matemática e eu organizo em dados, conta e resposta final.";
-    }
-
-    return "Recebi sua pergunta. Essa área já está pronta para salvar histórico por usuário. Depois vamos trocar essa resposta simulada pela IA real.";
-  },
-
   addTyping() {
     if (!el.aiBox) return;
 
@@ -966,6 +958,7 @@ const aiAssistant = {
       </div>
       <div class="aiMeta">IA • agora</div>
     `;
+
     el.aiBox.appendChild(wrap);
     el.aiBox.scrollTop = el.aiBox.scrollHeight;
   },
@@ -974,8 +967,35 @@ const aiAssistant = {
     document.getElementById("aiTypingMsg")?.remove();
   },
 
+  async askBackend(prompt) {
+    const recentHistory = STATE.ai.messages.slice(-10).map((msg) => ({
+      role: msg.role === "assistant" ? "assistant" : "user",
+      text: msg.text || ""
+    }));
+
+    const res = await fetch("http://localhost:3000/api/ai", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        prompt,
+        history: recentHistory
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Erro ao falar com a IA.");
+    }
+
+    return data.text || "Não consegui gerar resposta.";
+  },
+
   async send() {
     if (!STATE.user) return;
+
     const text = el.aiText?.value.trim();
     if (!text) return;
 
@@ -991,10 +1011,10 @@ const aiAssistant = {
 
     aiAssistant.addTyping();
 
-    setTimeout(async () => {
-      aiAssistant.removeTyping();
+    try {
+      const reply = await aiAssistant.askBackend(text);
 
-      const reply = await aiAssistant.fakeReply(text);
+      aiAssistant.removeTyping();
 
       STATE.ai.messages.push({
         role: "assistant",
@@ -1004,7 +1024,19 @@ const aiAssistant = {
 
       aiAssistant.render();
       await aiAssistant.persist();
-    }, 900);
+    } catch (error) {
+      aiAssistant.removeTyping();
+
+      STATE.ai.messages.push({
+        role: "assistant",
+        text: "Deu erro ao conectar com a IA. Veja se o backend está ligado e se a chave da API está certa.",
+        createdAt: new Date().toISOString()
+      });
+
+      aiAssistant.render();
+      await aiAssistant.persist();
+      console.error(error);
+    }
   },
 
   init() {
@@ -1020,7 +1052,6 @@ const aiAssistant = {
     });
   }
 };
-
 /* =========================================================
    FEATURE: Auth UI
 ========================================================= */
